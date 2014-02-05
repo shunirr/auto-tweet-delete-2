@@ -32,7 +32,7 @@ class AutoTweetDelete2
         p message
         case message
         when Twitter::Tweet
-          if @me == message.id
+          if @me == message.user.id
             add message
           end
         end
