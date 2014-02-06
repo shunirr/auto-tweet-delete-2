@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 require 'twitter'
+require 'cgi'
+require 'open-uri'
 
 class AutoTweetDelete2
   def initialize(args = {})
@@ -43,7 +45,19 @@ class AutoTweetDelete2
     end
   end
 
+  def yuueki?(message)
+    url = "http://yuueki-api.s5r.jp/yuueki?q=#{CGI.escape(message.text)}"
+    yuueki = false
+    begin
+      yuueki = ( open(url).read == 'true' )
+    rescue => e
+    end
+    yuueki
+  end
+
   def add(message)
+    return if yuueki? message
+
     Thread.start(message) do
       sleep 60 * 60
       delete message
