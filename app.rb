@@ -21,21 +21,27 @@ class AutoTweetDelete2
       config.access_token_secret = args['access_token_secret']
     end
 
-    @me = @rest_client.user.id
+    @me = @rest_client.user
   end
 
   def run
-    crawlar
+    Thread.start { rest_crawlar }
+    streaming_crawlar
   end
 
-  def crawlar
+  def rest_crawlar
+    @rest_client.user_timeline(:me, :count => 200).each do |tweet|
+      add tweet
+    end
+  end
+
+  def streaming_crawlar
     begin
-      @stream_client.user do |message|
-        p message
-        case message
+      @stream_client.user do |tweet|
+        case tweet
         when Twitter::Tweet
-          if @me == message.user.id
-            add message
+          if @me.id == tweet.user.id
+            add tweet
           end
         end
       end
@@ -45,8 +51,8 @@ class AutoTweetDelete2
     end
   end
 
-  def yuueki?(message)
-    url = "http://yuueki-api.s5r.jp/yuueki?q=#{CGI.escape(message.text)}"
+  def yuueki?(tweet)
+    url = "http://yuueki-api.s5r.jp/yuueki?q=#{CGI.escape(tweet.text)}"
     yuueki = false
     begin
       yuueki = ( open(url).read == 'true' )
@@ -55,17 +61,17 @@ class AutoTweetDelete2
     yuueki
   end
 
-  def add(message)
-    return if yuueki? message
-
-    Thread.start(message) do
-      sleep 60 * 60
-      delete message
+  def add(tweet)
+    return if yuueki? tweet
+    Thread.start(tweet) do
+      wait = tweet.created_at.to_i - Time.now.to_i + 60 * 60
+      sleep wait if wait > 0
+      delete tweet
     end
   end
 
-  def delete(message)
-    @rest_client.destroy_status(message.id)
+  def delete(tweet)
+    @rest_client.destroy_status(tweet.id)
   end
 end
 
